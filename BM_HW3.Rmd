@@ -5,26 +5,154 @@ date: "2020/10/15"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup}
+library(tidyverse)
+library(readxl)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+# Problem 1
+Add the data
+```{r}
+exercise_df =
+  read_csv("./data/Exercise.csv") %>% 
+  janitor::clean_names()
 ```
 
-## Including Plots
+## a) Tests for intervention group and control group
 
-You can also embed plots, for example:
+```{r}
+int_group =
+  exercise_df %>% 
+  filter(group == 1)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+int_post = pull(int_group, systolic_post)
+int_pre = pull(int_group, systolic_pre)
+int_diff = int_post - int_pre
+int_mean = mean(int_diff)
+int_sd = sd(int_diff)
+test_int = mean(int_diff)/(int_sd/sqrt(length(int_diff)))
+qt(0.975,35)
+
+t.test(int_post, int_pre, paired = T)
+
+con_group = 
+  exercise_df %>% 
+  filter(group == 0)
+
+con_post = pull(con_group, systolic_post)
+con_pre = pull(con_group, systolic_pre)
+con_diff = con_post - con_pre
+con_mean = mean(con_diff)
+con_sd = sd(con_diff)
+test_con = mean(con_diff)/(con_sd/sqrt(length(con_diff)))
+qt(0.975,35)
+
+t.test(con_post, con_pre, paired = T)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## b)Test for the Systolic BP absolute changes between the two groups
+
+```{r}
+f_stats = int_sd^2/(con_sd^2)
+qf(.975, df1 = 35, df2 = 35)
+qf(.025, df1 = 35, df2 = 35)
+sd = sqrt((35 * int_sd^2 + 35 * con_sd^2)/70)
+t_stats = (int_mean - con_mean)/(sd * sqrt(2/36) )
+qt(0.975,70)
+```
+
+## c) plots
+
+```{r}
+int_group %>% 
+  ggplot(aes(x = systolic_pre)) +
+  geom_histogram(bins = 20, fill = "yellow") +
+  labs(
+    title = "The distribution of systolic pre in intervention group",
+    x = "Systolic Pre",
+    y = "Count"
+    )
+
+int_group %>% 
+  ggplot(aes(x = systolic_post)) +
+  geom_histogram(bins = 20, fill = "yellow") +
+  labs(
+    title = "The distribution of systolic post in intervention group",
+    x = "Systolic Post",
+    y = "Count"
+    )
+
+con_group %>% 
+  ggplot(aes(x = systolic_pre)) +
+  geom_histogram(bins = 20, fill = "blue") +
+  labs(
+    title = "The distribution of systolic pre in control group",
+    x = "Systolic Pre",
+    y = "Count"
+    )
+
+con_group %>% 
+  ggplot(aes(x = systolic_post)) +
+  geom_histogram(bins = 20, fill = "blue") +
+  labs(
+    title = "The distribution of systolic post in control group",
+    x = "Systolic Post",
+    y = "Count"
+    )
+
+int_group %>%
+  mutate(
+    int_change = systolic_post - systolic_pre
+  ) %>% 
+  ggplot(aes(x = int_change)) +
+  geom_histogram(bins = 20, fill = "pink") +
+  labs(
+    title = "The distribution of SBP absolute changes in intervention group",
+    x = "SBP absolute changes",
+    y = "Count"
+    )
+
+con_group %>%
+  mutate(
+    con_change = systolic_post - systolic_pre
+  ) %>% 
+  ggplot(aes(x = con_change)) +
+  geom_histogram(bins = 20, fill = "pink") +
+  labs(
+    title = "The distribution of SBP absolute changes in control group",
+    x = "SBP absolute changes",
+    y = "Count"
+    )
+```
+
+# Problem 2
+
+## a) Generate one random sample and test it
+
+```{r}
+test_sample =
+  function(x){
+    conclusion = list()
+    count = 1
+    reject = 0
+    fail = 0
+    while (count <= x) {
+      count = count + 1
+      sample = rnorm(20, mean = 120, sd = 15)
+      mean_s = mean(sample)
+      z_s = (mean_s - 120)/(15 / sqrt(20))
+      reject = ifelse(z_s < qnorm(0.05), reject + 1, reject)
+      fail = ifelse(z_s < qnorm(0.05), fail, fail + 1)
+    }
+    conclusion = append(conclusion,reject)
+    conclusion = append(conclusion,fail)
+    return(conclusion)
+  }
+
+test_sample(1) 
+test_sample(100)
+test_sample(1000)
+
+```
+For conclusion, the first number is the number of rejection, the second number is the number of fail of rejection.
